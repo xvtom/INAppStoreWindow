@@ -205,6 +205,11 @@ typedef void (^INAppStoreWindowBackgroundDrawingBlock)(BOOL drawsAsMainWindow, C
 @property (nonatomic, strong) NSFont *titleFont;
 
 /**
+ Whether to smooth the title font during drawing.
+ */
+@property (nonatomic) BOOL shouldSmoothTitleFont;
+
+/**
  Gradient used to draw the window's title bar, when the window is main.
  
  If this property is \c nil, the system gradient will be used.

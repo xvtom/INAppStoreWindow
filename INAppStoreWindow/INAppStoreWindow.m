@@ -314,6 +314,8 @@ NS_INLINE void INApplyClippingPathInCurrentContext(CGPathRef path) {
 {
 	INAppStoreWindow *window = (INAppStoreWindow *)self.window;
 	BOOL drawsAsMainWindow = (window.isMainWindow && [NSApplication sharedApplication].isActive);
+	
+	CGContextRef context = [[NSGraphicsContext currentContext] graphicsPort];
 
 	// Start by filling the title bar area with black in fullscreen mode to match native apps
 	// Custom title bar drawing blocks can simply override this by not applying the clipping path
@@ -339,12 +341,14 @@ NS_INLINE void INApplyClippingPathInCurrentContext(CGPathRef path) {
 		NSRect titleTextRect;
 		NSDictionary *titleTextStyles = nil;
 		[self getTitleFrame:&titleTextRect textAttributes:&titleTextStyles forWindow:window];
+		
+		CGContextSetShouldSmoothFonts(context, window.shouldSmoothTitleFont);
 
 		if (titleTextStyles) {
 			if (window.verticallyCenterTitle) {
 				titleTextRect.origin.y = floor(NSMidY(drawingRect) - (NSHeight(titleTextRect) / 2.f) + 1);
 			}
-
+			
 			[window.title drawInRect:titleTextRect withAttributes:titleTextStyles];
 		} else {
 			[self drawNativeWindowTitleInRect:titleTextRect];
@@ -846,6 +850,14 @@ NS_INLINE void INApplyClippingPathInCurrentContext(CGPathRef path) {
 	}
 }
 
+- (void)setShouldSmoothTitleFont:(BOOL)shouldSmoothTitleFont
+{
+	if (_shouldSmoothTitleFont != shouldSmoothTitleFont) {
+		_shouldSmoothTitleFont = shouldSmoothTitleFont;
+		[self _displayWindowAndTitlebar];
+	}
+}
+
 - (void)setShowsDocumentProxyIcon:(BOOL)showsDocumentProxyIcon
 {
 	if (_showsDocumentProxyIcon != showsDocumentProxyIcon) {
@@ -1055,6 +1067,7 @@ NS_INLINE void INApplyClippingPathInCurrentContext(CGPathRef path) {
 	_trafficLightButtonsTopMargin = 3.f;
 	_fullScreenButtonTopMargin = 3.f;
 	_trafficLightSeparation = self._defaultTrafficLightSeparation;
+	_shouldSmoothTitleFont = NO;
 	_drawsTitlePatternOverlay = YES;
 	super.delegate = _delegateProxy;
 

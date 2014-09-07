@@ -858,6 +858,13 @@ NS_INLINE void INApplyClippingPathInCurrentContext(CGPathRef path) {
 	}
 }
 
+- (void)setZoomButtonTogglesFullscreen:(BOOL)zoomButtonTogglesFullscreen {
+	if (_zoomButtonTogglesFullscreen != zoomButtonTogglesFullscreen) {
+		_zoomButtonTogglesFullscreen = zoomButtonTogglesFullscreen;
+		[self _displayWindowAndTitlebar];
+	}
+}
+
 - (void)setShowsDocumentProxyIcon:(BOOL)showsDocumentProxyIcon
 {
 	if (_showsDocumentProxyIcon != showsDocumentProxyIcon) {
@@ -970,10 +977,20 @@ NS_INLINE void INApplyClippingPathInCurrentContext(CGPathRef path) {
 		_zoomButton = zoomButton;
 		if (_zoomButton) {
 			_zoomButton.target = self;
-			_zoomButton.action = @selector(performZoom:);
+			
+			if (self.zoomButtonTogglesFullscreen) {
+				_zoomButton.action = @selector(toggleFullScreen:);
+				[_zoomButton.cell accessibilitySetOverrideValue:NSAccessibilityFullScreenButtonSubrole forAttribute:NSAccessibilitySubroleAttribute];
+				[_zoomButton.cell accessibilitySetOverrideValue:NSAccessibilityRoleDescription(NSAccessibilityButtonRole, NSAccessibilityFullScreenButtonSubrole) forAttribute:NSAccessibilityRoleDescriptionAttribute];
+			}
+			
+			else {
+				_zoomButton.action = @selector(performZoom:);
+				[_zoomButton.cell accessibilitySetOverrideValue:NSAccessibilityZoomButtonSubrole forAttribute:NSAccessibilitySubroleAttribute];
+				[_zoomButton.cell accessibilitySetOverrideValue:NSAccessibilityRoleDescription(NSAccessibilityButtonRole, NSAccessibilityZoomButtonSubrole) forAttribute:NSAccessibilityRoleDescriptionAttribute];
+			}
+			
 			_zoomButton.frameOrigin = [self standardWindowButton:NSWindowZoomButton].frame.origin;
-			[_zoomButton.cell accessibilitySetOverrideValue:NSAccessibilityZoomButtonSubrole forAttribute:NSAccessibilitySubroleAttribute];
-			[_zoomButton.cell accessibilitySetOverrideValue:NSAccessibilityRoleDescription(NSAccessibilityButtonRole, NSAccessibilityZoomButtonSubrole) forAttribute:NSAccessibilityRoleDescriptionAttribute];
 			[self.themeFrameView addSubview:_zoomButton];
 		}
 	}

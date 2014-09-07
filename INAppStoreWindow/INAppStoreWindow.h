@@ -210,6 +210,11 @@ typedef void (^INAppStoreWindowBackgroundDrawingBlock)(BOOL drawsAsMainWindow, C
 @property (nonatomic) BOOL shouldSmoothTitleFont;
 
 /**
+ Whether zoom button works as if it's full screen button.
+ */
+@property (nonatomic) BOOL zoomButtonTogglesFullscreen;
+
+/**
  Gradient used to draw the window's title bar, when the window is main.
  
  If this property is \c nil, the system gradient will be used.

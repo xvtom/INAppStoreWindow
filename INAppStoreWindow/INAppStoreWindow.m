@@ -1282,7 +1282,7 @@ NS_INLINE void INApplyClippingPathInCurrentContext(CGPathRef path) {
 	[self _recalculateFrameForTitleBarContainer];
 	[self.themeFrameView addSubview:container positioned:NSWindowBelow relativeTo:firstSubview];
 	_titleBarContainer = container;
-	self.titleBarView = [[INTitlebarView alloc] initWithFrame:NSZeroRect];
+	self.titleBarView = [[[[self class] titleBarViewClass] alloc] initWithFrame:NSZeroRect];
 }
 
 - (void)_createBottomBarView
@@ -1469,6 +1469,11 @@ NS_INLINE void INApplyClippingPathInCurrentContext(CGPathRef path) {
 + (NSColor *)defaultTitleTextColor:(BOOL)drawsAsMainWindow
 {
 	return drawsAsMainWindow ? [NSColor colorWithDeviceWhite:56.0/255.0 alpha:1.0] : [NSColor colorWithDeviceWhite:56.0/255.0 alpha:0.5];
+}
+
++ (Class)titleBarViewClass
+{
+    return [INTitlebarView class];
 }
 
 @end

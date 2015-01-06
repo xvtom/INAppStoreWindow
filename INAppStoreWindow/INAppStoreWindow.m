@@ -1154,9 +1154,12 @@ NS_INLINE void INApplyClippingPathInCurrentContext(CGPathRef path) {
 		minimizeFrame.origin.y = NSMaxY(zoomFrame) + self.trafficLightSeparation - 2.f;
 		closeFrame.origin.y = NSMaxY(minimizeFrame) + self.trafficLightSeparation - 2.f;
 	}
-	close.frame = closeFrame;
-	minimize.frame = minimizeFrame;
-	zoom.frame = zoomFrame;
+
+    if (!INRunningYosemite() || !(self.styleMask & NSFullScreenWindowMask)) {
+        close.frame = closeFrame;
+        minimize.frame = minimizeFrame;
+        zoom.frame = zoomFrame;
+    }
 
 	NSButton *docIconButton = [self standardWindowButton:NSWindowDocumentIconButton];
 	if (docIconButton) {

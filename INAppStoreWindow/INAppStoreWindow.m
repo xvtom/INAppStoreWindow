@@ -486,12 +486,13 @@ NS_INLINE void INApplyClippingPathInCurrentContext(CGPathRef path) {
 {
 	if (theEvent.clickCount == 2) {
 		// Get settings from "System Preferences" >	 "Appearance" > "Double-click on windows title bar to minimize"
-		NSString *const MDAppleMiniaturizeOnDoubleClickKey = @"AppleMiniaturizeOnDoubleClick";
 		NSUserDefaults *userDefaults = [NSUserDefaults standardUserDefaults];
-		BOOL shouldMiniaturize = [[userDefaults objectForKey:MDAppleMiniaturizeOnDoubleClickKey] boolValue];
+		BOOL shouldMiniaturize = [[userDefaults objectForKey:@"AppleMiniaturizeOnDoubleClick"] boolValue];
 		if (shouldMiniaturize) {
 			[self.window performMiniaturize:self];
-		}
+        } else if (INRunningYosemite()) {
+            [self.window performZoom:self];
+        }
 	}
 }
 

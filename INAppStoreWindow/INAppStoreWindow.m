@@ -520,6 +520,7 @@ NS_INLINE void INApplyClippingPathInCurrentContext(CGPathRef path) {
 @end
 
 @implementation INMovableByBackgroundContainerView
+
 - (instancetype)initWithFrame:(NSRect)frameRect
 {
 	self = [super initWithFrame:frameRect];
@@ -537,27 +538,25 @@ NS_INLINE void INApplyClippingPathInCurrentContext(CGPathRef path) {
 		return;
 	}
 
-	NSPoint where = [window convertBaseToScreen:theEvent.locationInWindow];
+	NSPoint where = [NSEvent mouseLocation];
 	NSPoint origin = window.frame.origin;
-	CGFloat deltaX = 0.0;
-	CGFloat deltaY = 0.0;
+    BOOL moving = NO;
+
 	while ((theEvent = [NSApp nextEventMatchingMask:NSLeftMouseDownMask | NSLeftMouseDraggedMask | NSLeftMouseUpMask untilDate:[NSDate distantFuture] inMode:NSEventTrackingRunLoopMode dequeue:YES]) && (theEvent.type != NSLeftMouseUp)) {
 		@autoreleasepool {
-			NSPoint now = [window convertBaseToScreen:theEvent.locationInWindow];
-			deltaX += now.x - where.x;
-			deltaY += now.y - where.y;
-			if (fabs(deltaX) >= _mouseDragDetectionThreshold || fabs(deltaY) >= _mouseDragDetectionThreshold) {
-				// This part is only called if drag occurs on container view!
-				origin.x += deltaX;
-				origin.y += deltaY;
-				window.frameOrigin = origin;
-				deltaX = 0.0;
-				deltaY = 0.0;
-			}
-			where = now; // this should be inside above if but doing that results in jittering while moving the window...
+			NSPoint now = [NSEvent mouseLocation];
+            NSPoint delta = NSMakePoint(now.x - where.x, now.y - where.y);
+
+            if (!moving && (fabs(delta.x) >= _mouseDragDetectionThreshold || fabs(delta.y) >= _mouseDragDetectionThreshold)) {
+                moving = YES;
+            }
+            if (moving) {
+                window.frameOrigin = NSMakePoint(origin.x + delta.x, origin.y + delta.y);
+            }
 		}
 	}
 }
+
 @end
 
 @interface INAppStoreWindowContentView : NSView

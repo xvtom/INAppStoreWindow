@@ -490,12 +490,13 @@ NS_INLINE void INApplyClippingPathInCurrentContext(CGPathRef path) {
 {
 	if (theEvent.clickCount == 2) {
 		// Get settings from "System Preferences" >	 "Appearance" > "Double-click on windows title bar to minimize"
-		NSString *const MDAppleMiniaturizeOnDoubleClickKey = @"AppleMiniaturizeOnDoubleClick";
 		NSUserDefaults *userDefaults = [NSUserDefaults standardUserDefaults];
-		BOOL shouldMiniaturize = [[userDefaults objectForKey:MDAppleMiniaturizeOnDoubleClickKey] boolValue];
+		BOOL shouldMiniaturize = [[userDefaults objectForKey:@"AppleMiniaturizeOnDoubleClick"] boolValue];
 		if (shouldMiniaturize) {
 			[self.window performMiniaturize:self];
-		}
+        } else if (INRunningYosemite()) {
+            [self.window performZoom:self];
+        }
 	}
 }
 
@@ -523,6 +524,7 @@ NS_INLINE void INApplyClippingPathInCurrentContext(CGPathRef path) {
 @end
 
 @implementation INMovableByBackgroundContainerView
+
 - (instancetype)initWithFrame:(NSRect)frameRect
 {
 	self = [super initWithFrame:frameRect];
@@ -540,27 +542,25 @@ NS_INLINE void INApplyClippingPathInCurrentContext(CGPathRef path) {
 		return;
 	}
 
-	NSPoint where = [window convertBaseToScreen:theEvent.locationInWindow];
+	NSPoint where = [NSEvent mouseLocation];
 	NSPoint origin = window.frame.origin;
-	CGFloat deltaX = 0.0;
-	CGFloat deltaY = 0.0;
+    BOOL moving = NO;
+
 	while ((theEvent = [NSApp nextEventMatchingMask:NSLeftMouseDownMask | NSLeftMouseDraggedMask | NSLeftMouseUpMask untilDate:[NSDate distantFuture] inMode:NSEventTrackingRunLoopMode dequeue:YES]) && (theEvent.type != NSLeftMouseUp)) {
 		@autoreleasepool {
-			NSPoint now = [window convertBaseToScreen:theEvent.locationInWindow];
-			deltaX += now.x - where.x;
-			deltaY += now.y - where.y;
-			if (fabs(deltaX) >= _mouseDragDetectionThreshold || fabs(deltaY) >= _mouseDragDetectionThreshold) {
-				// This part is only called if drag occurs on container view!
-				origin.x += deltaX;
-				origin.y += deltaY;
-				window.frameOrigin = origin;
-				deltaX = 0.0;
-				deltaY = 0.0;
-			}
-			where = now; // this should be inside above if but doing that results in jittering while moving the window...
+			NSPoint now = [NSEvent mouseLocation];
+            NSPoint delta = NSMakePoint(now.x - where.x, now.y - where.y);
+
+            if (!moving && (fabs(delta.x) >= _mouseDragDetectionThreshold || fabs(delta.y) >= _mouseDragDetectionThreshold)) {
+                moving = YES;
+            }
+            if (moving) {
+                window.frameOrigin = NSMakePoint(origin.x + delta.x, origin.y + delta.y);
+            }
 		}
 	}
 }
+
 @end
 
 @interface INAppStoreWindowContentView : NSView
@@ -1184,9 +1184,12 @@ NS_INLINE void INApplyClippingPathInCurrentContext(CGPathRef path) {
 		minimizeFrame.origin.y = NSMaxY(zoomFrame) + self.trafficLightSeparation - 2.f;
 		closeFrame.origin.y = NSMaxY(minimizeFrame) + self.trafficLightSeparation - 2.f;
 	}
-	close.frame = closeFrame;
-	minimize.frame = minimizeFrame;
-	zoom.frame = zoomFrame;
+
+    if (!INRunningYosemite() || !(self.styleMask & NSFullScreenWindowMask)) {
+        close.frame = closeFrame;
+        minimize.frame = minimizeFrame;
+        zoom.frame = zoomFrame;
+    }
 
 	NSButton *docIconButton = [self standardWindowButton:NSWindowDocumentIconButton];
 	if (docIconButton) {
@@ -1308,7 +1311,7 @@ NS_INLINE void INApplyClippingPathInCurrentContext(CGPathRef path) {
 	[self _recalculateFrameForTitleBarContainer];
 	[self.themeFrameView addSubview:container positioned:NSWindowBelow relativeTo:firstSubview];
 	_titleBarContainer = container;
-	self.titleBarView = [[INTitlebarView alloc] initWithFrame:NSZeroRect];
+	self.titleBarView = [[[[self class] titleBarViewClass] alloc] initWithFrame:NSZeroRect];
 }
 
 - (void)_createBottomBarView
@@ -1495,6 +1498,11 @@ NS_INLINE void INApplyClippingPathInCurrentContext(CGPathRef path) {
 + (NSColor *)defaultTitleTextColor:(BOOL)drawsAsMainWindow
 {
 	return drawsAsMainWindow ? [NSColor colorWithDeviceWhite:56.0/255.0 alpha:1.0] : [NSColor colorWithDeviceWhite:56.0/255.0 alpha:0.5];
+}
+
++ (Class)titleBarViewClass
+{
+    return [INTitlebarView class];
 }
 
 @end

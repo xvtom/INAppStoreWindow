@@ -337,6 +337,11 @@ typedef void (^INAppStoreWindowBackgroundDrawingBlock)(BOOL drawsAsMainWindow, C
  */
 + (NSColor *)defaultTitleTextColor:(BOOL)drawsAsMainWindow;
 
+/*!
+ Defaults to INTitlebarView, but can be overridden by subclasses.
+ */
++ (Class)titleBarViewClass;
+
 /**
  Sets the height of the title bar. By default, this is set to the standard title bar height.
 

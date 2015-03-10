@@ -530,6 +530,11 @@ NS_INLINE void INApplyClippingPathInCurrentContext(CGPathRef path) {
 	return self;
 }
 
+- (BOOL)mouseDownCanMoveWindow
+{
+    return NO;
+}
+
 - (void)mouseDragged:(NSEvent *)theEvent
 {
 	NSWindow *window = self.window;
@@ -542,7 +547,7 @@ NS_INLINE void INApplyClippingPathInCurrentContext(CGPathRef path) {
 	NSPoint origin = window.frame.origin;
     BOOL moving = NO;
 
-	while ((theEvent = [NSApp nextEventMatchingMask:NSLeftMouseDownMask | NSLeftMouseDraggedMask | NSLeftMouseUpMask untilDate:[NSDate distantFuture] inMode:NSEventTrackingRunLoopMode dequeue:YES]) && (theEvent.type != NSLeftMouseUp)) {
+	while ((theEvent = [window nextEventMatchingMask:NSLeftMouseDownMask | NSLeftMouseDraggedMask | NSLeftMouseUpMask]) && (theEvent.type != NSLeftMouseUp)) {
 		@autoreleasepool {
 			NSPoint now = [NSEvent mouseLocation];
             NSPoint delta = NSMakePoint(now.x - where.x, now.y - where.y);

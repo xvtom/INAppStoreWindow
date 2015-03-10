@@ -515,10 +515,6 @@ NS_INLINE void INApplyClippingPathInCurrentContext(CGPathRef path) {
 
 @end
 
-@interface INMovableByBackgroundContainerView : NSView
-@property (nonatomic) CGFloat mouseDragDetectionThreshold;
-@end
-
 @implementation INMovableByBackgroundContainerView
 
 - (instancetype)initWithFrame:(NSRect)frameRect
@@ -1280,7 +1276,7 @@ NS_INLINE void INApplyClippingPathInCurrentContext(CGPathRef path) {
 - (void)_createTitlebarView
 {
 	// Create the title bar view
-	INMovableByBackgroundContainerView *container = [[INMovableByBackgroundContainerView alloc] initWithFrame:NSZeroRect];
+	INMovableByBackgroundContainerView *container = [[[[self class] titleBarContainerClass] alloc] initWithFrame:NSZeroRect];
 	// Configure the view properties and add it as a subview of the theme frame
 	NSView *firstSubview = self.themeFrameView.subviews.firstObject;
 	[self _recalculateFrameForTitleBarContainer];
@@ -1292,13 +1288,13 @@ NS_INLINE void INApplyClippingPathInCurrentContext(CGPathRef path) {
 - (void)_createBottomBarView
 {
 	// Create the bottom bar view
-	INMovableByBackgroundContainerView *container = [[INMovableByBackgroundContainerView alloc] initWithFrame:NSZeroRect];
+	INMovableByBackgroundContainerView *container = [[[[self class] bottomBarContainerClass] alloc] initWithFrame:NSZeroRect];
 	// Configure the view properties and add it as a subview of the theme frame
 	NSView *firstSubview = self.themeFrameView.subviews.firstObject;
 	[self _recalculateFrameForBottomBarContainer];
 	[self.themeFrameView addSubview:container positioned:NSWindowBelow relativeTo:firstSubview];
 	_bottomBarContainer = container;
-	self.bottomBarView = [[INBottomBarView alloc] initWithFrame:NSZeroRect];
+	self.bottomBarView = [[[[self class] bottomBarViewClass] alloc] initWithFrame:NSZeroRect];
 }
 
 - (void)_setTitleBarViewHidden:(BOOL)hidden
@@ -1478,6 +1474,21 @@ NS_INLINE void INApplyClippingPathInCurrentContext(CGPathRef path) {
 + (Class)titleBarViewClass
 {
     return [INTitlebarView class];
+}
+
++ (Class)bottomBarViewClass
+{
+    return [INBottomBarView class];
+}
+
++ (Class)titleBarContainerClass
+{
+    return [INMovableByBackgroundContainerView class];
+}
+
++ (Class)bottomBarContainerClass
+{
+    return [INMovableByBackgroundContainerView class];
 }
 
 @end

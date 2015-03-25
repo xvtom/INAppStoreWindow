@@ -591,31 +591,7 @@ NS_INLINE void INApplyClippingPathInCurrentContext(CGPathRef path) {
 	BOOL _setFullScreenButtonRightMargin;
 	BOOL _preventWindowFrameChange;
 	INAppStoreWindowDelegateProxy *_delegateProxy;
-	INMovableByBackgroundContainerView *_titleBarContainer;
-	INMovableByBackgroundContainerView *_bottomBarContainer;
 }
-
-@synthesize titleBarView = _titleBarView;
-@synthesize titleBarHeight = _titleBarHeight;
-@synthesize bottomBarView = _bottomBarView;
-@synthesize bottomBarHeight = _bottomBarHeight;
-@synthesize centerFullScreenButton = _centerFullScreenButton;
-@synthesize centerTrafficLightButtons = _centerTrafficLightButtons;
-@synthesize verticalTrafficLightButtons = _verticalTrafficLightButtons;
-@synthesize hideTitleBarInFullScreen = _hideTitleBarInFullScreen;
-@synthesize titleBarDrawingBlock = _titleBarDrawingBlock;
-@synthesize bottomBarDrawingBlock = _bottomBarDrawingBlock;
-@synthesize showsBaselineSeparator = _showsBaselineSeparator;
-@synthesize showsBottomBarSeparator = _showsBottomBarSeparator;
-@synthesize fullScreenButtonRightMargin = _fullScreenButtonRightMargin;
-@synthesize trafficLightButtonsLeftMargin = _trafficLightButtonsLeftMargin;
-@synthesize titleBarGradient = _titleBarGradient;
-@synthesize bottomBarGradient = _bottomBarGradient;
-@synthesize baselineSeparatorColor = _baselineSeparatorColor;
-@synthesize inactiveTitleBarGradient = _inactiveTitleBarGradient;
-@synthesize inactiveBottomBarGradient = _inactiveBottomBarGradient;
-@synthesize inactiveBaselineSeparatorColor = _inactiveBaselineSeparatorColor;
-@synthesize showsDocumentProxyIcon = _showsDocumentProxyIcon;
 
 #pragma mark -
 #pragma mark Initialization

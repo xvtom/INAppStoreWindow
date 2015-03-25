@@ -80,6 +80,11 @@ typedef void (^INAppStoreWindowBackgroundDrawingBlock)(BOOL drawsAsMainWindow, C
 													   CGRectEdge edge, CGPathRef clippingPath);
 
 /**
+ The top-level container view for all views inside this window.
+ */
+@property (nonatomic, readonly) NSView *themeFrameView;
+
+/**
  The height of the title bar. By default, this is set to the standard title bar height.
  */
 @property (nonatomic) CGFloat titleBarHeight;
@@ -94,6 +99,11 @@ typedef void (^INAppStoreWindowBackgroundDrawingBlock)(BOOL drawsAsMainWindow, C
 @property (nonatomic, strong) NSView *titleBarView;
 
 /**
+ Container view for the title bar view. This handles window dragging behavior.
+ */
+@property (nonatomic, strong, readonly) INMovableByBackgroundContainerView *titleBarContainer;
+
+/**
  The height of the bottom bar. By default, this is set to 0.
  */
 @property (nonatomic) CGFloat bottomBarHeight;
@@ -106,6 +116,11 @@ typedef void (^INAppStoreWindowBackgroundDrawingBlock)(BOOL drawsAsMainWindow, C
  (textured, etc.).
  */
 @property (nonatomic, strong) NSView *bottomBarView;
+
+/**
+ Container view for the bottom bar view. This handles window dragging behavior.
+ */
+@property (nonatomic, strong, readonly) INMovableByBackgroundContainerView *bottomBarContainer;
 
 /**
  Whether the fullscreen button is vertically centered.

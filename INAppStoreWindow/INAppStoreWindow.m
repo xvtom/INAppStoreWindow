@@ -140,6 +140,11 @@ NS_INLINE void INApplyClippingPathInCurrentContext(CGPathRef path) {
 
 @implementation INWindowBackgroundView
 
+- (BOOL)acceptsFirstMouse:(NSEvent *)theEvent
+{
+    return YES;
+}
+
 /*!
  Color used to draw the noise pattern over the window's title bar gradient.
  */

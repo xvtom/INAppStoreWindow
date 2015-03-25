@@ -570,9 +570,6 @@ NS_INLINE void INApplyClippingPathInCurrentContext(CGPathRef path) {
 
 @end
 
-@interface INAppStoreWindowContentView : NSView
-@end
-
 @implementation INAppStoreWindowContentView
 
 - (void)setFrame:(NSRect)frameRect

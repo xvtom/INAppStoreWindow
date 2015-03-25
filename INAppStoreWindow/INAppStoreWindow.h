@@ -57,6 +57,13 @@ APPKIT_EXTERN const NSInteger kINAppStoreWindowLargeBottomBarHeight;
 @end
 
 /**
+ The default view class for the content view that sizes itself appropriately.
+ */
+@interface INAppStoreWindowContentView : NSView
+
+@end
+
+/**
  Creates a window similar to the Mac App Store window, with centered traffic lights and an
  enlarged title bar. This does not handle creating the toolbar.
  */

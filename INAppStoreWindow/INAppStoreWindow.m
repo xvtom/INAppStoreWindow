@@ -482,6 +482,11 @@ NS_INLINE void INApplyClippingPathInCurrentContext(CGPathRef path) {
 	}
 }
 
+- (void)mouseDown:(NSEvent *)theEvent
+{
+    // Don't pass NSLeftMouseDown events to the superview since NSLeftMouseUp is handled by this view.
+}
+
 - (void)mouseUp:(NSEvent *)theEvent
 {
 	if (theEvent.clickCount == 2) {

@@ -346,6 +346,8 @@ NS_INLINE void INApplyClippingPathInCurrentContext(CGPathRef path) {
 				titleTextRect.origin.y = floor(NSMidY(drawingRect) - (NSHeight(titleTextRect) / 2.f) + 1);
 			}
 
+            CGContextSetShouldSmoothFonts([[NSGraphicsContext currentContext] graphicsPort], true);
+
 			[window.title drawInRect:titleTextRect withAttributes:titleTextStyles];
 		} else {
 			[self drawNativeWindowTitleInRect:titleTextRect];

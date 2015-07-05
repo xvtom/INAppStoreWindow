@@ -44,6 +44,26 @@ APPKIT_EXTERN const NSInteger kINAppStoreWindowLargeBottomBarHeight;
 @end
 
 /**
+ The container view for the title bar and bottom bar that handles moving the window by mouse dragging.
+ */
+@interface INMovableByBackgroundContainerView : NSView
+
+/**
+ Number of points in any direction above which the window will be allowed to reposition.
+ It's typical to set this property via the identically-named property on the window. Defaults to 1.
+ */
+@property (nonatomic) CGFloat mouseDragDetectionThreshold;
+
+@end
+
+/**
+ The default view class for the content view that sizes itself appropriately.
+ */
+@interface INAppStoreWindowContentView : NSView
+
+@end
+
+/**
  Creates a window similar to the Mac App Store window, with centered traffic lights and an
  enlarged title bar. This does not handle creating the toolbar.
  */
@@ -60,6 +80,11 @@ typedef void (^INAppStoreWindowBackgroundDrawingBlock)(BOOL drawsAsMainWindow, C
 													   CGRectEdge edge, CGPathRef clippingPath);
 
 /**
+ The top-level container view for all views inside this window.
+ */
+@property (nonatomic, readonly) NSView *themeFrameView;
+
+/**
  The height of the title bar. By default, this is set to the standard title bar height.
  */
 @property (nonatomic) CGFloat titleBarHeight;
@@ -74,6 +99,11 @@ typedef void (^INAppStoreWindowBackgroundDrawingBlock)(BOOL drawsAsMainWindow, C
 @property (nonatomic, strong) NSView *titleBarView;
 
 /**
+ Container view for the title bar view. This handles window dragging behavior.
+ */
+@property (nonatomic, strong, readonly) INMovableByBackgroundContainerView *titleBarContainer;
+
+/**
  The height of the bottom bar. By default, this is set to 0.
  */
 @property (nonatomic) CGFloat bottomBarHeight;
@@ -86,6 +116,11 @@ typedef void (^INAppStoreWindowBackgroundDrawingBlock)(BOOL drawsAsMainWindow, C
  (textured, etc.).
  */
 @property (nonatomic, strong) NSView *bottomBarView;
+
+/**
+ Container view for the bottom bar view. This handles window dragging behavior.
+ */
+@property (nonatomic, strong, readonly) INMovableByBackgroundContainerView *bottomBarContainer;
 
 /**
  Whether the fullscreen button is vertically centered.
@@ -341,6 +376,21 @@ typedef void (^INAppStoreWindowBackgroundDrawingBlock)(BOOL drawsAsMainWindow, C
  Defaults to INTitlebarView, but can be overridden by subclasses.
  */
 + (Class)titleBarViewClass;
+
+/*!
+ Defaults to INBottomBarView, but can be overridden by subclasses.
+ */
++ (Class)bottomBarViewClass;
+
+/*!
+ Defaults to INMovableByBackgroundContainerView, but can be overridden by subclasses.
+ */
++ (Class)titleBarContainerClass;
+
+/*!
+ Defaults to INMovableByBackgroundContainerView, but can be overridden by subclasses.
+ */
++ (Class)bottomBarContainerClass;
 
 /**
  Sets the height of the title bar. By default, this is set to the standard title bar height.

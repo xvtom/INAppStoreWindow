@@ -140,6 +140,11 @@ NS_INLINE void INApplyClippingPathInCurrentContext(CGPathRef path) {
 
 @implementation INWindowBackgroundView
 
+- (BOOL)acceptsFirstMouse:(NSEvent *)theEvent
+{
+    return YES;
+}
+
 /*!
  Color used to draw the noise pattern over the window's title bar gradient.
  */
@@ -328,6 +333,8 @@ NS_INLINE void INApplyClippingPathInCurrentContext(CGPathRef path) {
 {
 	INAppStoreWindow *window = (INAppStoreWindow *)self.window;
 	BOOL drawsAsMainWindow = (window.isMainWindow && [NSApplication sharedApplication].isActive);
+	
+	CGContextRef context = [[NSGraphicsContext currentContext] graphicsPort];
 
 	// Start by filling the title bar area with black in fullscreen mode to match native apps
 	// Custom title bar drawing blocks can simply override this by not applying the clipping path
@@ -353,12 +360,13 @@ NS_INLINE void INApplyClippingPathInCurrentContext(CGPathRef path) {
 		NSRect titleTextRect;
 		NSDictionary *titleTextStyles = nil;
 		[self getTitleFrame:&titleTextRect textAttributes:&titleTextStyles forWindow:window];
-
+		
 		if (titleTextStyles) {
 			if (window.verticallyCenterTitle) {
 				titleTextRect.origin.y = floor(NSMidY(drawingRect) - (NSHeight(titleTextRect) / 2.f) + 1);
 			}
-
+			
+			CGContextSetShouldSmoothFonts(context, window.shouldSmoothTitleFont);
 			[window.title drawInRect:titleTextRect withAttributes:titleTextStyles];
 		} else {
 			[self drawNativeWindowTitleInRect:titleTextRect];
@@ -500,16 +508,22 @@ NS_INLINE void INApplyClippingPathInCurrentContext(CGPathRef path) {
 	}
 }
 
+- (void)mouseDown:(NSEvent *)theEvent
+{
+    // Don't pass NSLeftMouseDown events to the superview since NSLeftMouseUp is handled by this view.
+}
+
 - (void)mouseUp:(NSEvent *)theEvent
 {
 	if (theEvent.clickCount == 2) {
 		// Get settings from "System Preferences" >	 "Appearance" > "Double-click on windows title bar to minimize"
-		NSString *const MDAppleMiniaturizeOnDoubleClickKey = @"AppleMiniaturizeOnDoubleClick";
 		NSUserDefaults *userDefaults = [NSUserDefaults standardUserDefaults];
-		BOOL shouldMiniaturize = [[userDefaults objectForKey:MDAppleMiniaturizeOnDoubleClickKey] boolValue];
+		BOOL shouldMiniaturize = [[userDefaults objectForKey:@"AppleMiniaturizeOnDoubleClick"] boolValue];
 		if (shouldMiniaturize) {
 			[self.window performMiniaturize:self];
-		}
+        } else if (INRunningYosemite()) {
+            [self.window performZoom:self];
+        }
 	}
 }
 
@@ -532,11 +546,8 @@ NS_INLINE void INApplyClippingPathInCurrentContext(CGPathRef path) {
 
 @end
 
-@interface INMovableByBackgroundContainerView : NSView
-@property (nonatomic) CGFloat mouseDragDetectionThreshold;
-@end
-
 @implementation INMovableByBackgroundContainerView
+
 - (instancetype)initWithFrame:(NSRect)frameRect
 {
 	self = [super initWithFrame:frameRect];
@@ -544,6 +555,11 @@ NS_INLINE void INApplyClippingPathInCurrentContext(CGPathRef path) {
 		_mouseDragDetectionThreshold = 1;
 	}
 	return self;
+}
+
+- (BOOL)mouseDownCanMoveWindow
+{
+    return NO;
 }
 
 - (void)mouseDragged:(NSEvent *)theEvent
@@ -554,37 +570,25 @@ NS_INLINE void INApplyClippingPathInCurrentContext(CGPathRef path) {
 		return;
 	}
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-	NSPoint where = [window convertBaseToScreen:theEvent.locationInWindow];
-#pragma clang diagnostic pop
-	
+	NSPoint where = [NSEvent mouseLocation];
 	NSPoint origin = window.frame.origin;
-	CGFloat deltaX = 0.0;
-	CGFloat deltaY = 0.0;
-	while ((theEvent = [NSApp nextEventMatchingMask:NSLeftMouseDownMask | NSLeftMouseDraggedMask | NSLeftMouseUpMask untilDate:[NSDate distantFuture] inMode:NSEventTrackingRunLoopMode dequeue:YES]) && (theEvent.type != NSLeftMouseUp)) {
+    BOOL moving = NO;
+
+	while ((theEvent = [window nextEventMatchingMask:NSLeftMouseDownMask | NSLeftMouseDraggedMask | NSLeftMouseUpMask]) && (theEvent.type != NSLeftMouseUp)) {
 		@autoreleasepool {
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-			NSPoint now = [window convertBaseToScreen:theEvent.locationInWindow];
-#pragma clang diagnostic pop
-			deltaX += now.x - where.x;
-			deltaY += now.y - where.y;
-			if (fabs(deltaX) >= _mouseDragDetectionThreshold || fabs(deltaY) >= _mouseDragDetectionThreshold) {
-				// This part is only called if drag occurs on container view!
-				origin.x += deltaX;
-				origin.y += deltaY;
-				window.frameOrigin = origin;
-				deltaX = 0.0;
-				deltaY = 0.0;
-			}
-			where = now; // this should be inside above if but doing that results in jittering while moving the window...
+			NSPoint now = [NSEvent mouseLocation];
+            NSPoint delta = NSMakePoint(now.x - where.x, now.y - where.y);
+
+            if (!moving && (fabs(delta.x) >= _mouseDragDetectionThreshold || fabs(delta.y) >= _mouseDragDetectionThreshold)) {
+                moving = YES;
+            }
+            if (moving) {
+                window.frameOrigin = NSMakePoint(origin.x + delta.x, origin.y + delta.y);
+            }
 		}
 	}
 }
-@end
 
-@interface INAppStoreWindowContentView : NSView
 @end
 
 @implementation INAppStoreWindowContentView
@@ -605,34 +609,13 @@ NS_INLINE void INApplyClippingPathInCurrentContext(CGPathRef path) {
 
 @implementation INAppStoreWindow {
 	CGFloat _cachedTitleBarHeight;
+    NSPoint _cachedCloseButtonOrigin;
+    NSPoint _cachedMinimizeButtonOrigin;
+    NSPoint _cachedZoomButtonOrigin;
 	BOOL _setFullScreenButtonRightMargin;
 	BOOL _preventWindowFrameChange;
 	INAppStoreWindowDelegateProxy *_delegateProxy;
-	INMovableByBackgroundContainerView *_titleBarContainer;
-	INMovableByBackgroundContainerView *_bottomBarContainer;
 }
-
-@synthesize titleBarView = _titleBarView;
-@synthesize titleBarHeight = _titleBarHeight;
-@synthesize bottomBarView = _bottomBarView;
-@synthesize bottomBarHeight = _bottomBarHeight;
-@synthesize centerFullScreenButton = _centerFullScreenButton;
-@synthesize centerTrafficLightButtons = _centerTrafficLightButtons;
-@synthesize verticalTrafficLightButtons = _verticalTrafficLightButtons;
-@synthesize hideTitleBarInFullScreen = _hideTitleBarInFullScreen;
-@synthesize titleBarDrawingBlock = _titleBarDrawingBlock;
-@synthesize bottomBarDrawingBlock = _bottomBarDrawingBlock;
-@synthesize showsBaselineSeparator = _showsBaselineSeparator;
-@synthesize showsBottomBarSeparator = _showsBottomBarSeparator;
-@synthesize fullScreenButtonRightMargin = _fullScreenButtonRightMargin;
-@synthesize trafficLightButtonsLeftMargin = _trafficLightButtonsLeftMargin;
-@synthesize titleBarGradient = _titleBarGradient;
-@synthesize bottomBarGradient = _bottomBarGradient;
-@synthesize baselineSeparatorColor = _baselineSeparatorColor;
-@synthesize inactiveTitleBarGradient = _inactiveTitleBarGradient;
-@synthesize inactiveBottomBarGradient = _inactiveBottomBarGradient;
-@synthesize inactiveBaselineSeparatorColor = _inactiveBaselineSeparatorColor;
-@synthesize showsDocumentProxyIcon = _showsDocumentProxyIcon;
 
 #pragma mark -
 #pragma mark Initialization
@@ -867,6 +850,21 @@ NS_INLINE void INApplyClippingPathInCurrentContext(CGPathRef path) {
 	}
 }
 
+- (void)setShouldSmoothTitleFont:(BOOL)shouldSmoothTitleFont
+{
+	if (_shouldSmoothTitleFont != shouldSmoothTitleFont) {
+		_shouldSmoothTitleFont = shouldSmoothTitleFont;
+		[self _displayWindowAndTitlebar];
+	}
+}
+
+- (void)setZoomButtonTogglesFullscreen:(BOOL)zoomButtonTogglesFullscreen {
+	if (_zoomButtonTogglesFullscreen != zoomButtonTogglesFullscreen) {
+		_zoomButtonTogglesFullscreen = zoomButtonTogglesFullscreen;
+		[self _displayWindowAndTitlebar];
+	}
+}
+
 - (void)setShowsDocumentProxyIcon:(BOOL)showsDocumentProxyIcon
 {
 	if (_showsDocumentProxyIcon != showsDocumentProxyIcon) {
@@ -943,48 +941,64 @@ NS_INLINE void INApplyClippingPathInCurrentContext(CGPathRef path) {
 - (void)setCloseButton:(INWindowButton *)closeButton
 {
 	if (_closeButton != closeButton) {
+        [self _removeTrafficLightsFrameObservers];
 		[_closeButton removeFromSuperview];
 		_closeButton = closeButton;
 		if (_closeButton) {
 			_closeButton.target = self;
 			_closeButton.action = @selector(performClose:);
-			_closeButton.frameOrigin = [self standardWindowButton:NSWindowCloseButton].frame.origin;
+			_closeButton.frameOrigin = _cachedCloseButtonOrigin;
 			[_closeButton.cell accessibilitySetOverrideValue:NSAccessibilityCloseButtonSubrole forAttribute:NSAccessibilitySubroleAttribute];
 			[_closeButton.cell accessibilitySetOverrideValue:NSAccessibilityRoleDescription(NSAccessibilityButtonRole, NSAccessibilityCloseButtonSubrole) forAttribute:NSAccessibilityRoleDescriptionAttribute];
 			[self.themeFrameView addSubview:_closeButton];
 		}
+        [self _setupTrafficLightsFrameObservers];
 	}
 }
 
 - (void)setMinimizeButton:(INWindowButton *)minimizeButton
 {
 	if (_minimizeButton != minimizeButton) {
+        [self _removeTrafficLightsFrameObservers];
 		[_minimizeButton removeFromSuperview];
 		_minimizeButton = minimizeButton;
 		if (_minimizeButton) {
 			_minimizeButton.target = self;
 			_minimizeButton.action = @selector(performMiniaturize:);
-			_minimizeButton.frameOrigin = [self standardWindowButton:NSWindowMiniaturizeButton].frame.origin;
+			_minimizeButton.frameOrigin = _cachedMinimizeButtonOrigin;
 			[_minimizeButton.cell accessibilitySetOverrideValue:NSAccessibilityMinimizeButtonSubrole forAttribute:NSAccessibilitySubroleAttribute];
 			[_minimizeButton.cell accessibilitySetOverrideValue:NSAccessibilityRoleDescription(NSAccessibilityButtonRole, NSAccessibilityMinimizeButtonSubrole) forAttribute:NSAccessibilityRoleDescriptionAttribute];
 			[self.themeFrameView addSubview:_minimizeButton];
 		}
+        [self _setupTrafficLightsFrameObservers];
 	}
 }
 
 - (void)setZoomButton:(INWindowButton *)zoomButton
 {
 	if (_zoomButton != zoomButton) {
+        [self _removeTrafficLightsFrameObservers];
 		[_zoomButton removeFromSuperview];
 		_zoomButton = zoomButton;
 		if (_zoomButton) {
 			_zoomButton.target = self;
-			_zoomButton.action = @selector(performZoom:);
+			
+			if (self.zoomButtonTogglesFullscreen) {
+				_zoomButton.action = @selector(toggleFullScreen:);
+				[_zoomButton.cell accessibilitySetOverrideValue:NSAccessibilityFullScreenButtonSubrole forAttribute:NSAccessibilitySubroleAttribute];
+				[_zoomButton.cell accessibilitySetOverrideValue:NSAccessibilityRoleDescription(NSAccessibilityButtonRole, NSAccessibilityFullScreenButtonSubrole) forAttribute:NSAccessibilityRoleDescriptionAttribute];
+			}
+			
+			else {
+				_zoomButton.action = @selector(performZoom:);
+				[_zoomButton.cell accessibilitySetOverrideValue:NSAccessibilityZoomButtonSubrole forAttribute:NSAccessibilitySubroleAttribute];
+				[_zoomButton.cell accessibilitySetOverrideValue:NSAccessibilityRoleDescription(NSAccessibilityButtonRole, NSAccessibilityZoomButtonSubrole) forAttribute:NSAccessibilityRoleDescriptionAttribute];
+			}
+			
 			_zoomButton.frameOrigin = [self standardWindowButton:NSWindowZoomButton].frame.origin;
-			[_zoomButton.cell accessibilitySetOverrideValue:NSAccessibilityZoomButtonSubrole forAttribute:NSAccessibilitySubroleAttribute];
-			[_zoomButton.cell accessibilitySetOverrideValue:NSAccessibilityRoleDescription(NSAccessibilityButtonRole, NSAccessibilityZoomButtonSubrole) forAttribute:NSAccessibilityRoleDescriptionAttribute];
 			[self.themeFrameView addSubview:_zoomButton];
 		}
+        [self _setupTrafficLightsFrameObservers];
 	}
 }
 
@@ -1076,6 +1090,7 @@ NS_INLINE void INApplyClippingPathInCurrentContext(CGPathRef path) {
 	_trafficLightButtonsTopMargin = 3.f;
 	_fullScreenButtonTopMargin = 3.f;
 	_trafficLightSeparation = self._defaultTrafficLightSeparation;
+	_shouldSmoothTitleFont = NO;
 	_drawsTitlePatternOverlay = YES;
 	super.delegate = _delegateProxy;
 
@@ -1104,6 +1119,7 @@ NS_INLINE void INApplyClippingPathInCurrentContext(CGPathRef path) {
 	[self _createBottomBarView];
 	[self _layoutTrafficLightsAndContent];
 	[self _setupTrafficLightsTrackingArea];
+    [self _setupTrafficLightsFrameObservers];
 }
 
 - (NSButton *)_windowButtonToLayout:(NSWindowButton)defaultButtonType orUserProvided:(NSButton *)userButton
@@ -1153,6 +1169,7 @@ NS_INLINE void INApplyClippingPathInCurrentContext(CGPathRef path) {
 	NSRect zoomFrame = zoom.frame;
 	NSRect titleBarFrame = _titleBarContainer.frame;
 	CGFloat buttonOrigin = 0.0;
+
 	if (!self.verticalTrafficLightButtons) {
 		if (self.centerTrafficLightButtons) {
 			buttonOrigin = round(NSMidY(titleBarFrame) - INMidHeight(closeFrame));
@@ -1179,9 +1196,16 @@ NS_INLINE void INApplyClippingPathInCurrentContext(CGPathRef path) {
 		minimizeFrame.origin.y = NSMaxY(zoomFrame) + self.trafficLightSeparation - 2.f;
 		closeFrame.origin.y = NSMaxY(minimizeFrame) + self.trafficLightSeparation - 2.f;
 	}
-	close.frame = closeFrame;
-	minimize.frame = minimizeFrame;
-	zoom.frame = zoomFrame;
+
+    if (!INRunningYosemite() || !(self.styleMask & NSFullScreenWindowMask)) {
+        _cachedCloseButtonOrigin = closeFrame.origin;
+        _cachedMinimizeButtonOrigin = minimizeFrame.origin;
+        _cachedZoomButtonOrigin = zoomFrame.origin;
+
+        close.frame = closeFrame;
+        minimize.frame = minimizeFrame;
+        zoom.frame = zoomFrame;
+    }
 
 	NSButton *docIconButton = [self standardWindowButton:NSWindowDocumentIconButton];
 	if (docIconButton) {
@@ -1297,25 +1321,25 @@ NS_INLINE void INApplyClippingPathInCurrentContext(CGPathRef path) {
 - (void)_createTitlebarView
 {
 	// Create the title bar view
-	INMovableByBackgroundContainerView *container = [[INMovableByBackgroundContainerView alloc] initWithFrame:NSZeroRect];
+	INMovableByBackgroundContainerView *container = [[[[self class] titleBarContainerClass] alloc] initWithFrame:NSZeroRect];
 	// Configure the view properties and add it as a subview of the theme frame
 	NSView *firstSubview = self.themeFrameView.subviews.firstObject;
 	[self _recalculateFrameForTitleBarContainer];
 	[self.themeFrameView addSubview:container positioned:NSWindowBelow relativeTo:firstSubview];
 	_titleBarContainer = container;
-	self.titleBarView = [[INTitlebarView alloc] initWithFrame:NSZeroRect];
+	self.titleBarView = [[[[self class] titleBarViewClass] alloc] initWithFrame:NSZeroRect];
 }
 
 - (void)_createBottomBarView
 {
 	// Create the bottom bar view
-	INMovableByBackgroundContainerView *container = [[INMovableByBackgroundContainerView alloc] initWithFrame:NSZeroRect];
+	INMovableByBackgroundContainerView *container = [[[[self class] bottomBarContainerClass] alloc] initWithFrame:NSZeroRect];
 	// Configure the view properties and add it as a subview of the theme frame
 	NSView *firstSubview = self.themeFrameView.subviews.firstObject;
 	[self _recalculateFrameForBottomBarContainer];
 	[self.themeFrameView addSubview:container positioned:NSWindowBelow relativeTo:firstSubview];
 	_bottomBarContainer = container;
-	self.bottomBarView = [[INBottomBarView alloc] initWithFrame:NSZeroRect];
+	self.bottomBarView = [[[[self class] bottomBarViewClass] alloc] initWithFrame:NSZeroRect];
 }
 
 - (void)_setTitleBarViewHidden:(BOOL)hidden
@@ -1328,6 +1352,50 @@ NS_INLINE void INApplyClippingPathInCurrentContext(CGPathRef path) {
 {
 	[self.themeFrameView viewWillStartLiveResize];
 	[self.themeFrameView viewDidEndLiveResize];
+}
+
+- (void)_setupTrafficLightsFrameObservers
+{
+    NSButton *closeButton = self._closeButtonToLayout;
+    NSButton *minimizeButton = self._minimizeButtonToLayout;
+    NSButton *zoomButton = self._zoomButtonToLayout;
+
+    closeButton.postsFrameChangedNotifications = YES;
+    minimizeButton.postsFrameChangedNotifications = YES;
+    zoomButton.postsFrameChangedNotifications = YES;
+
+    NSNotificationCenter *nc = [NSNotificationCenter defaultCenter];
+    [nc addObserver:self selector:@selector(_trafficLightButtonFrameChanged:) name:NSViewFrameDidChangeNotification object:closeButton];
+    [nc addObserver:self selector:@selector(_trafficLightButtonFrameChanged:) name:NSViewFrameDidChangeNotification object:minimizeButton];
+    [nc addObserver:self selector:@selector(_trafficLightButtonFrameChanged:) name:NSViewFrameDidChangeNotification object:zoomButton];
+}
+
+- (void)_removeTrafficLightsFrameObservers
+{
+    NSNotificationCenter *nc = [NSNotificationCenter defaultCenter];
+    [nc removeObserver:self name:NSViewFrameDidChangeNotification object:self._closeButtonToLayout];
+    [nc removeObserver:self name:NSViewFrameDidChangeNotification object:self._minimizeButtonToLayout];
+    [nc removeObserver:self name:NSViewFrameDidChangeNotification object:self._zoomButtonToLayout];
+}
+
+- (void)_trafficLightButtonFrameChanged:(NSNotification *)notification
+{
+    NSButton *button = notification.object;
+    NSPoint cachedOrigin;
+
+    if (button == self._closeButtonToLayout) {
+        cachedOrigin = _cachedCloseButtonOrigin;
+    } else if (button == self._minimizeButtonToLayout) {
+        cachedOrigin = _cachedMinimizeButtonOrigin;
+    } else if (button == self._zoomButtonToLayout) {
+        cachedOrigin = _cachedZoomButtonOrigin;
+    } else {
+        return;
+    }
+
+    if (!NSEqualPoints(button.frame.origin, cachedOrigin)) {
+        button.frameOrigin = cachedOrigin;
+    }
 }
 
 - (void)_recalculateFrameForTitleBarContainer
@@ -1490,6 +1558,26 @@ NS_INLINE void INApplyClippingPathInCurrentContext(CGPathRef path) {
 + (NSColor *)defaultTitleTextColor:(BOOL)drawsAsMainWindow
 {
 	return drawsAsMainWindow ? [NSColor colorWithDeviceWhite:56.0/255.0 alpha:1.0] : [NSColor colorWithDeviceWhite:56.0/255.0 alpha:0.5];
+}
+
++ (Class)titleBarViewClass
+{
+    return [INTitlebarView class];
+}
+
++ (Class)bottomBarViewClass
+{
+    return [INBottomBarView class];
+}
+
++ (Class)titleBarContainerClass
+{
+    return [INMovableByBackgroundContainerView class];
+}
+
++ (Class)bottomBarContainerClass
+{
+    return [INMovableByBackgroundContainerView class];
 }
 
 @end
